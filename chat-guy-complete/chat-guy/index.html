@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chat Guy — Your AI Companion</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f0f0f;
+      --sidebar-bg: #171717;
+      --surface: #1e1e1e;
+      --surface2: #2a2a2a;
+      --border: rgba(255,255,255,0.08);
+      --text: #ececec;
+      --text-muted: #888;
+      --text-hint: #555;
+      --accent: #7F77DD;
+      --accent-dark: #534AB7;
+      --accent-light: #AFA9EC;
+      --green: #5DCAA5;
+      --radius: 10px;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+
+    /* AUTH OVERLAY */
+    #auth-overlay {
+      position: fixed; inset: 0; background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100;
+    }
+    .auth-card {
+      background: var(--sidebar-bg); border: 1px solid var(--border);
+      border-radius: 16px; padding: 40px 36px; width: 100%; max-width: 400px;
+      text-align: center;
+    }
+    .auth-logo { width: 56px; height: 56px; border-radius: 14px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; color: #fff; margin: 0 auto 20px; }
+    .auth-card h1 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+    .auth-card p { font-size: 14px; color: var(--text-muted); margin-bottom: 28px; }
+    .auth-tabs { display: flex; background: var(--surface); border-radius: 8px; padding: 3px; margin-bottom: 24px; }
+    .auth-tab { flex: 1; padding: 8px; border-radius: 6px; border: none; background: transparent; color: var(--text-muted); font-size: 14px; cursor: pointer; transition: all 0.15s; }
+    .auth-tab.active { background: var(--accent); color: #fff; font-weight: 500; }
+    .auth-input { width: 100%; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 14px; margin-bottom: 12px; outline: none; transition: border-color 0.15s; }
+    .auth-input:focus { border-color: var(--accent); }
+    .auth-btn { width: 100%; padding: 12px; background: var(--accent); border: none; border-radius: var(--radius); color: #fff; font-size: 15px; font-weight: 500; cursor: pointer; margin-top: 4px; transition: background 0.15s; }
+    .auth-btn:hover { background: var(--accent-dark); }
+    .plan-note { font-size: 12px; color: var(--text-hint); margin-top: 16px; }
+    .plan-note a { color: var(--accent-light); text-decoration: none; }
+
+    /* PLAN MODAL */
+    #plan-modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: none; align-items: center; justify-content: center; z-index: 99;
+    }
+    #plan-modal.show { display: flex; }
+    .plan-card { background: var(--sidebar-bg); border: 1px solid var(--border); border-radius: 16px; padding: 36px; width: 100%; max-width: 540px; }
+    .plan-card h2 { font-size: 20px; font-weight: 600; margin-bottom: 6px; }
+    .plan-card > p { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; }
+    .plans-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .plan-option { border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; cursor: pointer; transition: border-color 0.15s; }
+    .plan-option:hover, .plan-option.featured { border-color: var(--accent); }
+    .plan-option.featured { background: rgba(127,119,221,0.08); }
+    .plan-badge { display: inline-block; background: var(--accent); color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 20px; margin-bottom: 8px; font-weight: 500; }
+    .plan-name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+    .plan-price { font-size: 22px; font-weight: 700; color: var(--accent); margin-bottom: 10px; }
+    .plan-price span { font-size: 13px; font-weight: 400; color: var(--text-muted); }
+    .plan-features { list-style: none; font-size: 13px; color: var(--text-muted); display: flex; flex-direction: column; gap: 5px; }
+    .plan-features li::before { content: "✓ "; color: var(--green); }
+    .plan-cta { width: 100%; padding: 12px; background: var(--accent); border: none; border-radius: var(--radius); color: #fff; font-size: 15px; font-weight: 500; cursor: pointer; }
+    .plan-cta:hover { background: var(--accent-dark); }
+    .plan-skip { display: block; text-align: center; margin-top: 12px; font-size: 13px; color: var(--text-hint); cursor: pointer; }
+    .plan-skip:hover { color: var(--text-muted); }
+
+    /* SIDEBAR */
+    #sidebar { width: 240px; background: var(--sidebar-bg); display: flex; flex-direction: column; border-right: 1px solid var(--border); flex-shrink: 0; }
+    .sidebar-header { padding: 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
+    .s-logo { width: 32px; height: 32px; border-radius: 8px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; }
+    .s-title { font-size: 15px; font-weight: 600; }
+    .new-chat-btn { margin: 12px; padding: 10px 14px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s; }
+    .new-chat-btn:hover { background: rgba(255,255,255,0.09); }
+    .new-chat-btn svg { width: 14px; height: 14px; stroke: var(--text); fill: none; stroke-width: 2; }
+    .chat-history { flex: 1; overflow-y: auto; padding: 4px 8px; }
+    .history-label { font-size: 11px; color: var(--text-hint); padding: 8px 8px 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .history-item { padding: 8px 10px; border-radius: 8px; color: rgba(255,255,255,0.6); font-size: 13px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .history-item:hover { background: rgba(255,255,255,0.06); }
+    .history-item.active { background: rgba(127,119,221,0.2); color: var(--accent-light); }
+    .sidebar-footer { padding: 12px; border-top: 1px solid var(--border); }
+    .user-row { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--radius); cursor: pointer; }
+    .user-row:hover { background: rgba(255,255,255,0.05); }
+    .user-av { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #fff; flex-shrink: 0; }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-plan { font-size: 11px; color: var(--text-hint); }
+    .pro-badge { background: var(--accent); color: #fff; font-size: 10px; padding: 1px 6px; border-radius: 10px; margin-left: 4px; }
+
+    /* MAIN */
+    #main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--bg); }
+    .topbar { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .model-pill { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 20px; font-size: 13px; color: var(--text-muted); cursor: pointer; transition: background 0.15s; }
+    .model-pill:hover { background: var(--surface); }
+    .model-pill svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+    .topbar-actions { display: flex; gap: 8px; }
+    .icon-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-muted); transition: background 0.15s; }
+    .icon-btn:hover { background: var(--surface); }
+    .icon-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+    /* MESSAGES */
+    #messages-area { flex: 1; overflow-y: auto; padding: 24px 0; scroll-behavior: smooth; }
+    #messages-area::-webkit-scrollbar { width: 4px; }
+    #messages-area::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 4px; }
+    #welcome { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100%; padding: 40px 24px; text-align: center; }
+    .big-logo { width: 60px; height: 60px; border-radius: 16px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700; color: #fff; margin: 0 auto 18px; }
+    #welcome h1 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+    #welcome p { font-size: 14px; color: var(--text-muted); margin-bottom: 32px; }
+    .suggestion-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; max-width: 500px; width: 100%; }
+    .sug-card { padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); text-align: left; cursor: pointer; font-size: 13px; color: var(--text-muted); line-height: 1.5; transition: border-color 0.15s; }
+    .sug-card:hover { border-color: var(--accent); color: var(--text); }
+    .sug-card strong { display: block; color: var(--text); font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+
+    .msg-row { display: flex; gap: 12px; padding: 8px 24px; max-width: 800px; margin: 0 auto; width: 100%; }
+    .msg-row.user { flex-direction: row-reverse; }
+    .msg-av { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+    .msg-av.bot { background: var(--accent); color: #fff; }
+    .msg-av.user { background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); }
+    .msg-content { max-width: 75%; }
+    .msg-name { font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 4px; }
+    .msg-row.user .msg-name { text-align: right; }
+    .msg-bubble { font-size: 14px; line-height: 1.7; padding: 12px 16px; border-radius: 12px; white-space: pre-wrap; }
+    .msg-row.bot .msg-bubble { background: var(--surface); color: var(--text); border-bottom-left-radius: 4px; }
+    .msg-row.user .msg-bubble { background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+
+    #typing-row { display: none; gap: 12px; padding: 8px 24px; max-width: 800px; margin: 0 auto; width: 100%; }
+    .typing-av { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #fff; flex-shrink: 0; }
+    .typing-dots { display: flex; gap: 4px; padding: 12px 16px; background: var(--surface); border-radius: 12px; border-bottom-left-radius: 4px; align-items: center; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-hint); animation: bounce 1.2s infinite; }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+    /* LIMIT BANNER */
+    #limit-banner { display: none; margin: 0 24px 12px; padding: 12px 16px; background: rgba(127,119,221,0.12); border: 1px solid rgba(127,119,221,0.3); border-radius: var(--radius); font-size: 13px; color: var(--accent-light); text-align: center; }
+    #limit-banner a { color: var(--accent); cursor: pointer; font-weight: 500; }
+
+    /* INPUT */
+    #input-zone { padding: 14px 24px 18px; }
+    .input-box { max-width: 800px; margin: 0 auto; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; display: flex; align-items: flex-end; gap: 8px; padding: 10px 12px; transition: border-color 0.15s; }
+    .input-box:focus-within { border-color: rgba(127,119,221,0.5); }
+    #chat-input { flex: 1; border: none; outline: none; background: transparent; font-size: 14px; color: var(--text); resize: none; max-height: 120px; line-height: 1.6; font-family: var(--font); }
+    #chat-input::placeholder { color: var(--text-hint); }
+    #send-btn { width: 34px; height: 34px; border-radius: 8px; background: var(--accent); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; opacity: 0.4; transition: opacity 0.15s, background 0.15s; }
+    #send-btn.ready { opacity: 1; }
+    #send-btn:hover.ready { background: var(--accent-dark); }
+    #send-btn svg { width: 15px; height: 15px; fill: white; }
+    .input-hint { text-align: center; font-size: 11px; color: var(--text-hint); margin-top: 8px; max-width: 800px; margin-left: auto; margin-right: auto; }
+
+    @media (max-width: 600px) {
+      #sidebar { display: none; }
+      .suggestion-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- AUTH OVERLAY -->
+<div id="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-logo">CG</div>
+    <h1>Welcome to Chat Guy</h1>
+    <p>Your Gen Z AI companion for literally anything</p>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')">Sign in</button>
+      <button class="auth-tab" onclick="switchTab('signup')">Sign up</button>
+    </div>
+    <input class="auth-input" type="email" id="auth-email" placeholder="Email address" />
+    <input class="auth-input" type="password" id="auth-password" placeholder="Password" />
+    <div id="signup-name-row" style="display:none;">
+      <input class="auth-input" type="text" id="auth-name" placeholder="Your name" />
+    </div>
+    <button class="auth-btn" onclick="handleAuth()">Continue</button>
+    <p class="plan-note">By continuing you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a></p>
+  </div>
+</div>
+
+<!-- PLAN MODAL -->
+<div id="plan-modal">
+  <div class="plan-card">
+    <h2>Upgrade Chat Guy</h2>
+    <p>Unlock unlimited conversations and premium features</p>
+    <div class="plans-grid">
+      <div class="plan-option">
+        <div class="plan-name">Free</div>
+        <div class="plan-price">R0 <span>/ month</span></div>
+        <ul class="plan-features">
+          <li>10 messages / day</li>
+          <li>Basic replies</li>
+          <li>1 chat at a time</li>
+        </ul>
+      </div>
+      <div class="plan-option featured">
+        <div class="plan-badge">Most popular</div>
+        <div class="plan-name">Pro</div>
+        <div class="plan-price">R99 <span>/ month</span></div>
+        <ul class="plan-features">
+          <li>Unlimited messages</li>
+          <li>Faster responses</li>
+          <li>Chat history saved</li>
+          <li>Priority support</li>
+        </ul>
+      </div>
+    </div>
+    <button class="plan-cta" onclick="choosePlan('pro')">Get Pro — R99/month</button>
+    <span class="plan-skip" onclick="choosePlan('free')">Continue with Free plan</span>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div class="sidebar-header">
+    <div class="s-logo">CG</div>
+    <span class="s-title">Chat Guy</span>
+  </div>
+  <button class="new-chat-btn" onclick="newChat()">
+    <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    New chat
+  </button>
+  <div class="chat-history">
+    <div class="history-label">Today</div>
+    <div class="history-item active" id="cur-thread">New conversation</div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="user-row">
+      <div class="user-av" id="sidebar-av">U</div>
+      <div class="user-info">
+        <div class="user-name" id="sidebar-name">User <span class="pro-badge" id="plan-badge" style="display:none;">PRO</span></div>
+        <div class="user-plan" id="sidebar-plan">Free plan</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div class="topbar">
+    <div class="model-pill">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+      Chat Guy AI
+      <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="topbar-actions">
+      <button class="icon-btn" onclick="document.getElementById('plan-modal').classList.add('show')" title="Upgrade">
+        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      </button>
+      <button class="icon-btn" onclick="logout()" title="Sign out">
+        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="messages-area">
+    <div id="welcome">
+      <div class="big-logo">CG</div>
+      <h1>What's good, <span id="welcome-name">friend</span>?</h1>
+      <p>Chat Guy is here for anything — what's on your mind?</p>
+      <div class="suggestion-grid">
+        <div class="sug-card" onclick="useSuggestion('Give me a vibe check for today')"><strong>Vibe check</strong>How are things going?</div>
+        <div class="sug-card" onclick="useSuggestion('Give me some money saving tips for Gen Z')"><strong>Money tips</strong>Smart ways to save</div>
+        <div class="sug-card" onclick="useSuggestion('Help me deal with social media burnout')"><strong>Social media</strong>Setting boundaries</div>
+        <div class="sug-card" onclick="useSuggestion('What are some fun things to do this weekend?')"><strong>Weekend plans</strong>Ideas for fun</div>
+      </div>
+    </div>
+    <div id="typing-row">
+      <div class="typing-av">CG</div>
+      <div class="typing-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+    </div>
+  </div>
+
+  <div id="limit-banner">
+    You've used all 10 free messages today. <a onclick="document.getElementById('plan-modal').classList.add('show')">Upgrade to Pro</a> for unlimited chats.
+  </div>
+
+  <div id="input-zone">
+    <div class="input-box">
+      <textarea id="chat-input" rows="1" placeholder="Message Chat Guy..."></textarea>
+      <button id="send-btn" onclick="sendMessage()">
+        <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+      </button>
+    </div>
+    <div class="input-hint">Chat Guy can make mistakes. Always use your own judgment.</div>
+  </div>
+</div>
+
+<script>
+  const FREE_LIMIT = 10;
+  let user = null;
+  let plan = 'free';
+  let msgCount = 0;
+  let dailyCount = 0;
+  let authMode = 'login';
+  const history = [];
+
+  // ── AUTH ──
+  function switchTab(mode) {
+    authMode = mode;
+    document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&mode==='login')||(i===1&&mode==='signup')));
+    document.getElementById('signup-name-row').style.display = mode === 'signup' ? 'block' : 'none';
+  }
+
+  function handleAuth() {
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value.trim();
+    if (!email || !password) { alert('Please fill in all fields.'); return; }
+    const name = authMode === 'signup' ? (document.getElementById('auth-name').value.trim() || email.split('@')[0]) : (localStorage.getItem('cg_name') || email.split('@')[0]);
+    user = { email, name };
+    localStorage.setItem('cg_user', JSON.stringify(user));
+    document.getElementById('auth-overlay').style.display = 'none';
+    if (authMode === 'signup') {
+      document.getElementById('plan-modal').classList.add('show');
+      localStorage.setItem('cg_name', name);
+    } else {
+      plan = localStorage.getItem('cg_plan') || 'free';
+      initApp();
+    }
+  }
+
+  function choosePlan(p) {
+    plan = p;
+    localStorage.setItem('cg_plan', p);
+    document.getElementById('plan-modal').classList.remove('show');
+    initApp();
+  }
+
+  function logout() {
+    localStorage.removeItem('cg_user');
+    location.reload();
+  }
+
+  function initApp() {
+    const initials = user.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    document.getElementById('sidebar-av').textContent = initials;
+    document.getElementById('sidebar-name').childNodes[0].textContent = user.name + ' ';
+    document.getElementById('sidebar-plan').textContent = plan === 'pro' ? 'Pro plan' : 'Free plan — 10 msgs/day';
+    if (plan === 'pro') document.getElementById('plan-badge').style.display = 'inline';
+    document.getElementById('welcome-name').textContent = user.name.split(' ')[0];
+    dailyCount = parseInt(localStorage.getItem('cg_daily_' + new Date().toDateString()) || '0');
+  }
+
+  // ── CHAT ──
+  const messagesArea = document.getElementById('messages-area');
+  const inputEl = document.getElementById('chat-input');
+  const sendBtn = document.getElementById('send-btn');
+  const typingRow = document.getElementById('typing-row');
+  const welcome = document.getElementById('welcome');
+  const limitBanner = document.getElementById('limit-banner');
+  const curThread = document.getElementById('cur-thread');
+
+  inputEl.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    sendBtn.classList.toggle('ready', this.value.trim().length > 0);
+  });
+  inputEl.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+
+  function addMsg(text, role) {
+    if (welcome.parentNode === messagesArea) messagesArea.removeChild(welcome);
+    const row = document.createElement('div');
+    row.className = 'msg-row ' + role;
+    const initials = role === 'user' ? (user ? user.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : 'U') : 'CG';
+    row.innerHTML = `<div class="msg-av ${role}">${initials}</div><div class="msg-content"><div class="msg-name">${role==='user'?(user?user.name.split(' ')[0]:'You'):'Chat Guy'}</div><div class="msg-bubble">${text.replace(/</g,'&lt;')}</div></div>`;
+    messagesArea.insertBefore(row, typingRow);
+    messagesArea.scrollTop = messagesArea.scrollHeight;
+    msgCount++;
+    if (msgCount === 1) curThread.textContent = text.slice(0,30) + (text.length>30?'...':'');
+  }
+
+  function showTyping(show) {
+    typingRow.style.display = show ? 'flex' : 'none';
+    if (show) messagesArea.scrollTop = messagesArea.scrollHeight;
+  }
+
+  async function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text) return;
+    if (!user) { alert('Please sign in first.'); return; }
+    if (plan === 'free' && dailyCount >= FREE_LIMIT) {
+      limitBanner.style.display = 'block';
+      return;
+    }
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
+    sendBtn.classList.remove('ready');
+    addMsg(text, 'user');
+    history.push({ role: 'user', content: text });
+    dailyCount++;
+    localStorage.setItem('cg_daily_' + new Date().toDateString(), dailyCount);
+    if (plan === 'free' && dailyCount >= FREE_LIMIT) limitBanner.style.display = 'block';
+    showTyping(true);
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: history })
+      });
+      const data = await res.json();
+      const reply = data.reply || "Something went wrong, try again!";
+      history.push({ role: 'assistant', content: reply });
+      showTyping(false);
+      addMsg(reply, 'bot');
+    } catch(e) {
+      showTyping(false);
+      addMsg("Couldn't connect. Check your internet and try again!", 'bot');
+    }
+  }
+
+  function useSuggestion(text) {
+    inputEl.value = text;
+    sendMessage();
+  }
+
+  function newChat() {
+    history.length = 0;
+    msgCount = 0;
+    curThread.textContent = 'New conversation';
+    const nodes = Array.from(messagesArea.childNodes);
+    nodes.forEach(n => { if (n !== typingRow) messagesArea.removeChild(n); });
+    messagesArea.insertBefore(welcome, typingRow);
+    showTyping(false);
+    limitBanner.style.display = 'none';
+  }
+
+  // ── INIT ──
+  const saved = localStorage.getItem('cg_user');
+  if (saved) {
+    user = JSON.parse(saved);
+    plan = localStorage.getItem('cg_plan') || 'free';
+    document.getElementById('auth-overlay').style.display = 'none';
+    initApp();
+  }
+</script>
+</body>
+</html>
